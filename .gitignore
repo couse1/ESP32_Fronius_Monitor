@@ -1,0 +1,40 @@
+# Fichiers spécifiques à l'IDE Arduino
+.vscode/
+.idea/
+*.iml
+.DS_Store
+
+# Fichiers de compilation
+*.o
+*.hex
+*.bin
+*.elf
+*.eep
+*.a
+*.d
+*.lst
+*.map
+
+# Fichiers de build Arduino/PlatformIO
+build/
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Fichiers de configuration locale
+secrets.h
+wifi_credentials.h
+
+# Fichiers système
+Thumbs.db
+desktop.ini
+
+# Fichiers de sauvegarde
+*~
+*.bak
+*.swp
+*.tmp
+
+# Fichiers de configuration spécifiques à l'utilisateur
+*.user
+*.suo
