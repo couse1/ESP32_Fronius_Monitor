@@ -24,6 +24,9 @@
 #define SCREEN_HEIGHT 64
 #define OLED_ADDR 0x3C  // Adresse I2C de l'écran OLED (généralement 0x3C ou 0x3D)
 
+// Configuration de l'affichage
+#define SHOW_BATTERY_DEFAULT true  // Afficher les données de batterie par défaut
+
 // LED RGB
 #define RGB_RED_PIN 25
 #define RGB_GREEN_PIN 26

@@ -18,6 +18,8 @@
 #define EEPROM_PASSWORD_LENGTH 64
 #define EEPROM_FRONIUS_IP_ADDR (EEPROM_PASSWORD_ADDR + EEPROM_PASSWORD_LENGTH)
 #define EEPROM_FRONIUS_IP_LENGTH 16
+#define EEPROM_SHOW_BATTERY_ADDR (EEPROM_FRONIUS_IP_ADDR + EEPROM_FRONIUS_IP_LENGTH)
+#define EEPROM_SHOW_BATTERY_LENGTH 1
 
 // Serveur DNS pour le portail captif
 const byte DNS_PORT = 53;
@@ -30,6 +32,7 @@ WebServer server(80);
 String savedSSID = "";
 String savedPassword = "";
 String savedFroniusIP = "";
+bool showBattery = SHOW_BATTERY_DEFAULT;
 bool configChanged = false;
 
 // Fonction pour vérifier si l'ESP a déjà été configuré
@@ -38,7 +41,7 @@ bool isConfigured() {
 }
 
 // Fonction pour sauvegarder les configurations dans l'EEPROM
-void saveConfiguration(String ssid, String password, String froniusIP) {
+void saveConfiguration(String ssid, String password, String froniusIP, bool batteryDisplay) {
   // Marquer comme configuré
   EEPROM.write(EEPROM_CONFIGURED_FLAG, 1);
   
@@ -69,12 +72,16 @@ void saveConfiguration(String ssid, String password, String froniusIP) {
     }
   }
   
+  // Sauvegarder l'option d'affichage de la batterie
+  EEPROM.write(EEPROM_SHOW_BATTERY_ADDR, batteryDisplay ? 1 : 0);
+  
   EEPROM.commit();
   
   // Mettre à jour les variables
   savedSSID = ssid;
   savedPassword = password;
   savedFroniusIP = froniusIP;
+  showBattery = batteryDisplay;
 }
 
 // Fonction pour charger les configurations depuis l'EEPROM
@@ -112,6 +119,10 @@ void loadConfiguration() {
     }
   }
   
+  // Charger l'option d'affichage de la batterie
+  byte batteryByte = EEPROM.read(EEPROM_SHOW_BATTERY_ADDR);
+  showBattery = (batteryByte == 1) ? true : SHOW_BATTERY_DEFAULT;
+  
   Serial.println("Configuration chargée:");
   Serial.print("SSID: ");
   Serial.println(savedSSID);
@@ -119,6 +130,8 @@ void loadConfiguration() {
   Serial.println("********");
   Serial.print("IP Fronius: ");
   Serial.println(savedFroniusIP);
+  Serial.print("Affichage batterie: ");
+  Serial.println(showBattery ? "Activé" : "Désactivé");
 }
 
 // Page HTML pour la configuration
@@ -233,6 +246,11 @@ const char* configPage = R"rawliteral(
         <input type="text" id="froniusIP" name="froniusIP" placeholder="Laissez vide pour découverte automatique">
       </div>
       
+      <div>
+        <label for="showBattery">Afficher les données de batterie:</label>
+        <input type="checkbox" id="showBattery" name="showBattery" checked>
+      </div>
+      
       <button type="submit">Enregistrer et connecter</button>
     </form>
     
@@ -338,13 +356,14 @@ void handleSave() {
   String ssid = server.arg("ssid");
   String password = server.arg("password");
   String froniusIP = server.arg("froniusIP");
+  bool batteryDisplay = (server.arg("showBattery") == "on" || server.arg("showBattery") == "true");
   
   if (ssid.length() == 0) {
     server.send(200, "application/json", "{\"success\":false,\"message\":\"SSID est requis\"}");
     return;
   }
   
-  saveConfiguration(ssid, password, froniusIP);
+  saveConfiguration(ssid, password, froniusIP, batteryDisplay);
   configChanged = true;
   
   server.send(200, "application/json", "{\"success\":true}");

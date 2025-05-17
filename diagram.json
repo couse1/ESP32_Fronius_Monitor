@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "author": "ESP32 Fronius Monitor",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-ssd1306", "id": "oled", "top": 0, "left": 200, "attrs": {"i2c-address": "0x3C"} },
+    { "type": "wokwi-rgb-led", "id": "rgb1", "top": 150, "left": 200, "attrs": { "common": "cathode" } }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp:GND.1", "oled:GND", "black", [ "v0" ] ],
+    [ "esp:3V3", "oled:VCC", "red", [ "v0" ] ],
+    [ "esp:21", "oled:SDA", "blue", [ "v0" ] ],
+    [ "esp:22", "oled:SCL", "yellow", [ "v0" ] ],
+    [ "esp:GND.2", "rgb1:GND", "black", [ "v0" ] ],
+    [ "esp:25", "rgb1:R", "red", [ "v0" ] ],
+    [ "esp:26", "rgb1:G", "green", [ "v0" ] ],
+    [ "esp:27", "rgb1:B", "blue", [ "v0" ] ]
+  ],
+  "dependencies": {
+    "wokwi-esp32-devkit-v1": "^1.6.0",
+    "wokwi-ssd1306": "^0.0.1",
+    "wokwi-rgb-led": "^0.0.1"
+  }
+}

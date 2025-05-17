@@ -21,6 +21,7 @@
 #include <EEPROM.h>
 #include "config.h"
 #include "wifi_manager.h"
+#include "wokwi-simulation.h"
 
 // Déclaration de l'écran OLED
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -60,6 +61,50 @@ void setup() {
     for(;;); // Ne pas continuer si l'écran n'est pas initialisé
   }
   
+#if WOKWI_SIMULATION
+  // Mode simulation Wokwi
+  Serial.println("Mode simulation Wokwi activé");
+  
+  // Effacer l'écran et configurer l'affichage
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  display.println("ESP32 Fronius Monitor");
+  display.println("Mode SIMULATION");
+  display.display();
+  delay(2000);
+  
+  // Simuler la connexion WiFi
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("Simulation WiFi...");
+  display.display();
+  delay(1000);
+  
+  // Simuler la découverte de l'onduleur
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("Simulation recherche");
+  display.println("onduleur Fronius...");
+  display.display();
+  simulateDiscoveryFronius(froniusIPAddress);
+  
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("Onduleur simulé:");
+  display.println(froniusIPAddress);
+  display.println("\nRécupération données...");
+  display.display();
+  delay(1000);
+  
+  // Première récupération des données simulées
+  getSimulatedFroniusData(productionPower, consumptionPower, gridPower, batteryPower, batterySOC);
+  updateDisplay();
+  updateRGBLed();
+  
+#else
+  // Mode normal (non-simulation)
   // Initialisation de l'EEPROM
   EEPROM.begin(EEPROM_SIZE);
   
@@ -151,11 +196,32 @@ void setup() {
       setRGBColor(0, 0, 255);
     }
   }
+#endif
 }
 
 void loop() {
   unsigned long currentTime = millis();
   
+#if WOKWI_SIMULATION
+  // Mode simulation Wokwi
+  // Vérifier si c'est le moment de mettre à jour les données
+  if (currentTime - lastUpdateTime >= UPDATE_INTERVAL || lastUpdateTime == 0) {
+    // Obtenir les données simulées
+    getSimulatedFroniusData(productionPower, consumptionPower, gridPower, batteryPower, batterySOC);
+    updateDisplay();
+    updateRGBLed();
+    lastUpdateTime = currentTime;
+    
+    // Afficher les données simulées dans la console série
+    Serial.println("\n--- Données simulées ---");
+    Serial.print("Production: "); Serial.print(productionPower); Serial.println(" W");
+    Serial.print("Consommation: "); Serial.print(consumptionPower); Serial.println(" W");
+    Serial.print("Réseau: "); Serial.print(gridPower); Serial.println(" W");
+    Serial.print("Batterie: "); Serial.print(batteryPower); Serial.println(" W");
+    Serial.print("SOC Batterie: "); Serial.print(batterySOC); Serial.println(" %");
+  }
+#else
+  // Mode normal
   // Mode Point d'Accès (AP)
   if (apMode) {
     // Gérer le serveur DNS et Web
@@ -223,6 +289,7 @@ void loop() {
       }
     }
   }
+#endif
   
   // Petit délai pour éviter de surcharger le processeur
   delay(50);
@@ -230,6 +297,12 @@ void loop() {
 
 // Fonction pour récupérer les données de l'API Fronius
 void getFroniusData() {
+#if WOKWI_SIMULATION
+  // En mode simulation, utiliser les données simulées
+  // Cette fonction est appelée par la boucle principale, mais dans le mode simulation,
+  // les données sont déjà mises à jour par getSimulatedFroniusData()
+  return;
+#else
   HTTPClient http;
   
   // URL de l'API Fronius pour les données de puissance
@@ -301,72 +374,116 @@ void getFroniusData() {
   }
   
   http.end();
+#endif
 }
 
 // Fonction pour mettre à jour l'affichage OLED
 void updateDisplay() {
+  // Effacer l'écran
   display.clearDisplay();
-  display.setCursor(0, 0);
   
-  // Titre
+  // Titre centré avec texte plus grand
+  display.setTextSize(2);
+  display.setTextColor(SSD1306_WHITE);
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds("FRONIUS", 0, 0, &x1, &y1, &w, &h);
+  display.setCursor((SCREEN_WIDTH - w) / 2, 0);
+  display.println("FRONIUS");
+  
+  // Ligne de séparation
+  display.drawLine(0, 16, display.width(), 16, SSD1306_WHITE);
+  
+  // Affichage des valeurs principales avec des icônes et texte plus grand
   display.setTextSize(1);
-  display.println("Fronius Monitor");
-  display.drawLine(0, 9, display.width(), 9, SSD1306_WHITE);
   
-  // Données
-  display.setCursor(0, 12);
-  display.print("Production: ");
+  // Production avec icône soleil
+  display.setCursor(0, 19);
+  display.print("PROD ");
+  // Dessiner un petit soleil
+  display.drawCircle(40, 22, 3, SSD1306_WHITE);
+  display.drawLine(40, 18, 40, 16, SSD1306_WHITE); // Rayon haut
+  display.drawLine(40, 26, 40, 28, SSD1306_WHITE); // Rayon bas
+  display.drawLine(36, 22, 34, 22, SSD1306_WHITE); // Rayon gauche
+  display.drawLine(44, 22, 46, 22, SSD1306_WHITE); // Rayon droite
+  
+  // Valeur de production en grand
+  display.setTextSize(2);
+  display.setCursor(50, 19);
   display.print(productionPower, 0);
-  display.println(" W");
+  display.setTextSize(1);
+  display.setCursor(110, 26);
+  display.print("W");
   
-  display.print("Consommation: ");
+  // Consommation avec icône maison
+  display.setTextSize(1);
+  display.setCursor(0, 35);
+  display.print("CONSO ");
+  // Dessiner une petite maison
+  display.drawLine(37, 35, 43, 30, SSD1306_WHITE); // Toit gauche
+  display.drawLine(43, 30, 49, 35, SSD1306_WHITE); // Toit droit
+  display.drawRect(39, 35, 8, 6, SSD1306_WHITE);   // Corps maison
+  
+  // Valeur de consommation en grand
+  display.setTextSize(2);
+  display.setCursor(50, 35);
   display.print(consumptionPower, 0);
-  display.println(" W");
+  display.setTextSize(1);
+  display.setCursor(110, 42);
+  display.print("W");
   
-  display.print("Reseau: ");
-  if (gridPower >= 0) {
-    display.print("Import ");
-    display.print(gridPower, 0);
-  } else {
-    display.print("Export ");
-    display.print(-gridPower, 0);
-  }
-  display.println(" W");
-  
-  // Afficher les données de la batterie si présente
-  if (batterySOC > 0) {
-    display.print("Batterie: ");
-    display.print(batterySOC, 0);
-    display.print("% ");
+  // Afficher les données de batterie si l'option est activée
+  if (showBattery) {
+    // Barre de progression pour la batterie
+    display.drawRect(0, 53, 128, 11, SSD1306_WHITE);
+    int barWidth = (int)(batterySOC / 100.0 * 124);
+    display.fillRect(2, 55, barWidth, 7, SSD1306_WHITE);
     
-    if (batteryPower > 0) {
-      display.println("Charge");
-    } else if (batteryPower < 0) {
-      display.println("Decharge");
+    // Texte pour le réseau et la batterie
+    display.setCursor(2, 55);
+    if (gridPower >= 0) {
+      display.setTextColor(SSD1306_BLACK, SSD1306_WHITE); // Texte inversé sur la barre
+      display.print("IMP ");
+      display.print(gridPower, 0);
+      display.print("W");
     } else {
-      display.println("Idle");
+      display.setTextColor(SSD1306_BLACK, SSD1306_WHITE); // Texte inversé sur la barre
+      display.print("EXP ");
+      display.print(-gridPower, 0);
+      display.print("W");
     }
+    
+    // Pourcentage de batterie à droite
+    display.setCursor(90, 55);
+    display.print("BAT ");
+    display.print(batterySOC, 0);
+    display.print("%");
+    
+    // Indiquer l'état de charge/décharge si applicable
+    if (batteryPower != 0) {
+      display.setTextColor(SSD1306_WHITE);
+      display.setCursor(110, 45);
+      if (batteryPower > 0) {
+        display.print("CHG");
+      } else {
+        display.print("DCH");
+      }
+    }
+  } else {
+    // Si les données de batterie sont désactivées, afficher uniquement l'information réseau
+    display.setCursor(0, 53);
+    display.print("RESEAU: ");
+    if (gridPower >= 0) {
+      display.print("Import ");
+      display.print(gridPower, 0);
+    } else {
+      display.print("Export ");
+      display.print(-gridPower, 0);
+    }
+    display.print("W");
   }
   
-  // Afficher l'heure de la dernière mise à jour
-  display.setCursor(0, 56);
-  display.print("MAJ: ");
-  
-  // Convertir le temps en heures:minutes:secondes
-  unsigned long uptime = millis() / 1000;
-  int hours = uptime / 3600;
-  int mins = (uptime % 3600) / 60;
-  int secs = uptime % 60;
-  
-  if (hours < 10) display.print("0");
-  display.print(hours);
-  display.print(":");
-  if (mins < 10) display.print("0");
-  display.print(mins);
-  display.print(":");
-  if (secs < 10) display.print("0");
-  display.print(secs);
-  
+  // Afficher le contenu
   display.display();
 }
 

@@ -1,0 +1,26 @@
+[wokwi]
+version = 1
+firmware = "ESP32_Fronius_Monitor.ino"
+elf = "build/ESP32_Fronius_Monitor.ino.elf"
+
+# Configuration des broches pour l'écran OLED
+[[pin]]
+name = "SDA"
+value = "21"
+
+[[pin]]
+name = "SCL"
+value = "22"
+
+# Configuration des broches pour la LED RGB
+[[pin]]
+name = "R"
+value = "25"
+
+[[pin]]
+name = "G"
+value = "26"
+
+[[pin]]
+name = "B"
+value = "27"
